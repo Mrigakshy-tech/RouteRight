@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RouteRight — AI Waste Dispatch System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0D1F17;
+    --bgcard:   #162B1E;
+    --bgalt:    #1C3526;
+    --bghover:  #213D2C;
+    --green:    #1DB954;
+    --greenlt:  #6DFFB8;
+    --mint:     #A8F0CB;
+    --amber:    #F5A623;
+    --amberlt:  #FFD080;
+    --teal:     #20C9C0;
+    --red:      #E05252;
+    --cream:    #F0EDE4;
+    --muted:    #7DAF90;
+    --slate:    #4A7260;
+    --border:   #254535;
+  }
+
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--cream); min-height: 100vh; }
+
+  /* ─── TOP BAR ─── */
+  .topbar {
+    background: var(--bgcard);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .logo { font-size: 22px; font-weight: 800; color: var(--green); letter-spacing: -1px; }
+  .logo span { color: var(--cream); font-weight: 400; }
+  .logo-sub { font-size: 10px; color: var(--muted); margin-left: 8px; letter-spacing: 0.5px; }
+  .badge { background: #1DB95420; border: 1px solid var(--green); color: var(--green); font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; letter-spacing: 0.8px; }
+  .badge.red { background: #E0525220; border-color: var(--red); color: var(--red); }
+  .toptime { font-size: 11px; color: var(--muted); background: var(--bgalt); padding: 4px 10px; border-radius: 6px; }
+
+  /* ─── TABS ─── */
+  .tabs { display: flex; background: var(--bgcard); border-bottom: 1px solid var(--border); padding: 0 20px; gap: 2px; }
+  .tab { padding: 10px 16px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; letter-spacing: 0.3px; }
+  .tab:hover { color: var(--cream); }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  /* ─── LAYOUT ─── */
+  .layout { display: flex; height: calc(100vh - 90px); }
+  .sidebar { width: 210px; background: var(--bgcard); border-right: 1px solid var(--border); padding: 16px 0; flex-shrink: 0; overflow-y: auto; }
+  .sb-section { margin-bottom: 18px; }
+  .sb-label { font-size: 9px; font-weight: 700; color: var(--slate); letter-spacing: 1.5px; padding: 0 14px 6px; }
+  .sb-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; color: var(--muted); font-size: 12px; border-left: 3px solid transparent; transition: all 0.12s; }
+  .sb-item:hover:not(.active) { background: var(--bgalt); color: var(--cream); }
+  .sb-item.active { color: var(--green); border-left-color: var(--green); background: #1DB95412; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-count { margin-left: auto; font-size: 10px; font-weight: 700; background: var(--bgalt); padding: 1px 6px; border-radius: 8px; }
+
+  /* ─── CONTENT ─── */
+  .content { flex: 1; overflow-y: auto; padding: 18px 20px; }
+
+  /* ─── STAT CARDS ─── */
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--bgcard); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat-val { font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  .stat-lbl { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: 0.5px; }
+  .stat-sub { font-size: 10px; color: var(--slate); margin-top: 2px; }
+
+  /* ─── SIMULATE BAR ─── */
+  .simbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; padding: 10px 14px; background: var(--bgcard); border: 1px solid var(--border); border-radius: 8px; }
+  .sim-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+  .sim-btn { background: var(--bgalt); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 600; transition: all 0.15s; }
+  .sim-btn:hover { background: var(--bghover); color: var(--cream); border-color: var(--green); }
+  .sim-status { font-size: 11px; color: var(--green); font-style: italic; margin-left: 4px; }
+  .cycle-badge { font-size: 10px; background: var(--bgalt); color: var(--slate); padding: 3px 8px; border-radius: 10px; margin-left: auto; }
+
+  /* ─── SECTION HEADER ─── */
+  .sec-hd { font-size: 10px; font-weight: 700; color: var(--slate); letter-spacing: 1.5px; margin-bottom: 8px; }
+
+  /* ─── TABLE ─── */
+  .tbl-wrap { background: var(--bgcard); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  .tbl-hd { display: grid; grid-template-columns: 60px 140px 100px 90px 100px 100px 110px; padding: 8px 14px; background: var(--bgalt); font-size: 10px; font-weight: 700; color: var(--slate); letter-spacing: 1px; }
+  .tbl-row { display: grid; grid-template-columns: 60px 140px 100px 90px 100px 100px 110px; padding: 9px 14px; border-top: 1px solid var(--bgalt); align-items: center; cursor: pointer; transition: background 0.1s; }
+  .tbl-row:hover { background: var(--bgalt); }
+  .tbl-row.crit { border-left: 3px solid var(--red); }
+  .tbl-row.alrt { border-left: 3px solid var(--amber); }
+  .tbl-row.watch { border-left: 3px solid var(--teal); }
+  .tbl-row.ok { border-left: 3px solid var(--green); }
+
+  /* ─── PILLS ─── */
+  .pill { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; display: inline-block; letter-spacing: 0.3px; }
+  .pill-crit { background: #E0525222; color: var(--red); }
+  .pill-alrt { background: #F5A62322; color: var(--amber); }
+  .pill-watch { background: #20C9C022; color: var(--teal); }
+  .pill-ok { background: #1DB95422; color: var(--green); }
+
+  /* ─── BAR ─── */
+  .mini-bar { background: var(--bgalt); border-radius: 3px; height: 6px; overflow: hidden; width: 65px; display: inline-block; vertical-align: middle; }
+  .mini-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+
+  /* ─── ACTION BUTTONS ─── */
+  .act-btn { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; border: none; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+  .act-dispatch { background: var(--red); color: white; }
+  .act-dispatch:hover { background: #c94040; }
+  .act-sent { background: #1DB95420; color: var(--green); border: 1px solid var(--green); cursor: default; }
+  .act-alerted { background: #F5A62320; color: var(--amber); border: 1px solid var(--amber); cursor: default; }
+  .act-monitor { background: #20C9C020; color: var(--teal); border: 1px solid var(--teal); cursor: default; }
+  .act-none { background: var(--bgalt); color: var(--slate); border: 1px solid var(--border); cursor: default; }
+
+  /* ─── PANEL ROW ─── */
+  .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .panel { background: var(--bgcard); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .panel-hd { font-size: 10px; font-weight: 700; color: var(--slate); letter-spacing: 1.2px; margin-bottom: 12px; }
+
+  /* ─── GAUGES ─── */
+  .gauge-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .gauge-name { font-size: 11px; color: var(--cream); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gauge-track { flex: 1; background: var(--bgalt); border-radius: 4px; height: 10px; overflow: hidden; }
+  .gauge-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+  .gauge-pct { font-size: 11px; font-weight: 700; width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* ─── AI BOX ─── */
+  .ai-box { background: #F5A62310; border: 1px solid #F5A62344; border-radius: 7px; padding: 11px 13px; margin-bottom: 10px; }
+  .ai-label { font-size: 9px; font-weight: 700; color: var(--amber); letter-spacing: 1px; margin-bottom: 5px; }
+  .ai-text { font-size: 11px; color: var(--cream); line-height: 1.55; }
+
+  /* ─── PRED TABLE ─── */
+  .pred-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid var(--border); font-size: 11px; }
+  .pred-row:first-child { border-top: none; }
+  .pred-k { color: var(--muted); }
+  .pred-v { color: var(--cream); font-weight: 600; }
+
+  /* ─── ALERTS ─── */
+  .alert-card { border-radius: 7px; padding: 11px 13px; margin-bottom: 8px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .alert-head { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+  .alert-sub { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .alert-dispatch-btn { font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 5px; border: none; cursor: pointer; font-family: inherit; }
+
+  /* ─── WORKER TABLE ─── */
+  .worker-card { background: var(--bgalt); border-radius: 7px; padding: 11px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+  .worker-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .worker-name { font-size: 12px; font-weight: 700; color: var(--cream); }
+  .worker-sub { font-size: 11px; color: var(--muted); }
+  .worker-status { margin-left: auto; }
+  .worker-pay { font-size: 11px; color: var(--greenlt); font-weight: 600; margin-top: 2px; }
+
+  /* ─── ESG PAGE ─── */
+  .esg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .esg-card { border-radius: 8px; padding: 14px; }
+  .esg-pillar { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .esg-val { font-size: 30px; font-weight: 800; margin-bottom: 4px; }
+  .esg-lbl { font-size: 11px; opacity: 0.75; }
+  .esg-target { font-size: 10px; margin-top: 6px; opacity: 0.6; }
+  .progress-bar { background: rgba(255,255,255,0.15); border-radius: 4px; height: 6px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: rgba(255,255,255,0.6); transition: width 0.5s; }
+
+  /* ─── MODAL ─── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: #000000bb; z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--bgalt); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; max-width: 420px; width: 92%; }
+  .modal-title { font-size: 16px; font-weight: 800; color: var(--green); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .close-x { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; line-height: 1; }
+  .close-x:hover { color: var(--cream); }
+  .modal-close-btn { width: 100%; margin-top: 14px; padding: 8px; background: var(--green); color: var(--bg); border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+  /* ─── MISC ─── */
+  .cell { font-size: 11px; color: var(--cream); }
+  .cell-m { font-size: 11px; color: var(--muted); }
+  .green { color: var(--green); }
+  .amber { color: var(--amber); }
+  .red { color: var(--red); }
+  .teal { color: var(--teal); }
+  .tick { color: var(--green); font-weight: 700; }
+  .cross { color: var(--red); font-weight: 700; }
+  .empty-msg { color: var(--muted); font-size: 12px; padding: 10px 0; }
+
+  /* ─── LOG ─── */
+  .log-entry { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 11px; align-items: flex-start; }
+  .log-entry:first-child { border-top: none; }
+  .log-time { color: var(--slate); flex-shrink: 0; width: 48px; }
+  .log-icon { flex-shrink: 0; }
+  .log-text { color: var(--muted); line-height: 1.4; }
+  .log-text strong { color: var(--cream); }
+
+  @media (max-width: 900px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .tbl-hd, .tbl-row { grid-template-columns: 55px 120px 90px 80px 90px 90px 100px; font-size: 10px; }
+    .panel-row, .esg-grid { grid-template-columns: 1fr; }
+    .sidebar { width: 170px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="logo">Route<span>Right</span> <span style="font-size:13px;color:var(--muted);font-weight:400">AI Waste Dispatch</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="badge" id="aiBadge">⬤ AI ACTIVE</div>
+    <div class="badge red" id="critBadge" style="display:none">⚠ 2 CRITICAL</div>
+    <div class="toptime" id="clock">—</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('dashboard',this)">📊 Dashboard</div>
+  <div class="tab" onclick="switchTab('predictions',this)">🧠 AI Predictions</div>
+  <div class="tab" onclick="switchTab('workers',this)">👥 Relay Workers</div>
+  <div class="tab" onclick="switchTab('esg',this)">🌿 ESG Impact</div>
+  <div class="tab" onclick="switchTab('log',this)">📋 Audit Log</div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">BIN STATUS</div>
+      <div class="sb-item active" id="sb-all" onclick="filterBins('all',this)">
+        🗂 All Bins <span class="sb-count" id="sbAllCount">15</span>
+      </div>
+      <div class="sb-item" id="sb-critical" onclick="filterBins('critical',this)">
+        <div class="sb-dot" style="background:var(--red)"></div> Critical
+        <span class="sb-count" id="sbCritCount" style="background:#E0525220;color:var(--red)">2</span>
+      </div>
+      <div class="sb-item" id="sb-alert" onclick="filterBins('alert',this)">
+        <div class="sb-dot" style="background:var(--amber)"></div> Alert
+        <span class="sb-count" id="sbAlrtCount" style="background:#F5A62320;color:var(--amber)">3</span>
+      </div>
+      <div class="sb-item" id="sb-watch" onclick="filterBins('watch',this)">
+        <div class="sb-dot" style="background:var(--teal)"></div> Watch
+        <span class="sb-count" id="sbWatchCount">4</span>
+      </div>
+      <div class="sb-item" id="sb-ok" onclick="filterBins('ok',this)">
+        <div class="sb-dot" style="background:var(--green)"></div> OK
+        <span class="sb-count" id="sbOkCount">6</span>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">ZONES</div>
+      <div class="sb-item active">📍 Paltan Bazaar</div>
+      <div class="sb-item">📍 Christian Basti</div>
+      <div class="sb-item">📍 Bharalumukh</div>
+      <div class="sb-item">📍 Uzanbazar</div>
+      <div class="sb-item">📍 MG Road Area</div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">AI MODEL</div>
+      <div style="padding:0 14px">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">
+          <div class="sb-dot" style="background:var(--green)"></div>
+          <span style="font-size:11px;color:var(--cream)">Prophet v2.1</span>
+        </div>
+        <div style="font-size:10px;color:var(--slate);line-height:1.7">
+          MAE: <span class="green">18 min</span><br>
+          Accuracy: <span class="green">91%</span><br>
+          Last train: 3 days ago<br>
+          Data: CPCB + sensors
+        </div>
+      </div>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">QUICK ACTIONS</div>
+      <div style="padding:0 10px;display:flex;flex-direction:column;gap:5px">
+        <button class="sim-btn" onclick="dispatchAll()" style="width:100%;text-align:center">📡 Dispatch All Critical</button>
+        <button class="sim-btn" onclick="tickTime()" style="width:100%;text-align:center">⏩ Advance 30 min</button>
+        <button class="sim-btn" onclick="resetSim()" style="width:100%;text-align:center">↺ Reset Sim</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content" id="contentArea">
+    <!-- Rendered by JS -->
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">
+      <span id="modalTitle">Bin Detail</span>
+      <button class="close-x" onclick="closeModal()">×</button>
+    </div>
+    <div id="modalBody"></div>
+    <button class="modal-close-btn" onclick="closeModal()">Close</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────
+const INITIAL_BINS = [
+  { id:"B-07", lane:"Paltan Lane 3",       zone:"Paltan Bazaar",   fill:94, eta:22,  conf:94, status:"critical", dispatched:false, worker:"Raju Kumar",    pay:120 },
+  { id:"B-14", lane:"MG Rd Gully East",    zone:"MG Road Area",    fill:91, eta:35,  conf:89, status:"critical", dispatched:false, worker:"Sunita Devi",   pay:120 },
+  { id:"B-12", lane:"Christian Basti Ln",  zone:"Christian Basti", fill:81, eta:58,  conf:83, status:"alert",    dispatched:false, worker:"Amina Begum",   pay:100 },
+  { id:"B-22", lane:"Uzanbazar Lane 2",    zone:"Uzanbazar",       fill:79, eta:72,  conf:81, status:"alert",    dispatched:false, worker:"Dilip Mandal",  pay:100 },
+  { id:"B-09", lane:"Paltan Market East",  zone:"Paltan Bazaar",   fill:76, eta:88,  conf:78, status:"alert",    dispatched:false, worker:"Meena Das",     pay:100 },
+  { id:"B-03", lane:"MG Road Gully W",     zone:"MG Road Area",    fill:67, eta:130, conf:76, status:"watch",    dispatched:false, worker:"–",             pay:0   },
+  { id:"B-17", lane:"Bharalumukh Sq",      zone:"Bharalumukh",     fill:62, eta:158, conf:79, status:"watch",    dispatched:false, worker:"–",             pay:0   },
+  { id:"B-08", lane:"Uzanbazar Market",    zone:"Uzanbazar",       fill:59, eta:175, conf:72, status:"watch",    dispatched:false, worker:"–",             pay:0   },
+  { id:"B-11", lane:"Christian East Ln",   zone:"Christian Basti", fill:55, eta:200, conf:81, status:"watch",    dispatched:false, worker:"–",             pay:0   },
+  { id:"B-19", lane:"Bharalumukh Rd",      zone:"Bharalumukh",     fill:45, eta:310, conf:88, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+  { id:"B-05", lane:"Paltan Sq North",     zone:"Paltan Bazaar",   fill:38, eta:380, conf:91, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+  { id:"B-01", lane:"MG Main Lane",        zone:"MG Road Area",    fill:32, eta:410, conf:86, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+  { id:"B-24", lane:"Uzanbazar Inner",     zone:"Uzanbazar",       fill:28, eta:450, conf:84, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+  { id:"B-16", lane:"Bharalumukh Inner",   zone:"Bharalumukh",     fill:22, eta:500, conf:90, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+  { id:"B-20", lane:"Christian Basti Sq",  zone:"Christian Basti", fill:18, eta:540, conf:87, status:"ok",       dispatched:false, worker:"–",             pay:0   },
+];
+
+const WORKERS = [
+  { name:"Raju Kumar",   zone:"Paltan Bazaar",   tasks:12, paid:true,  onRoster:true,  tasksDone:8,  avatar:"RK", color:"#1DB95430" },
+  { name:"Sunita Devi",  zone:"MG Road Area",    tasks:9,  paid:true,  onRoster:true,  tasksDone:6,  avatar:"SD", color:"#F5A62330" },
+  { name:"Amina Begum",  zone:"Christian Basti", tasks:11, paid:true,  onRoster:true,  tasksDone:7,  avatar:"AB", color:"#20C9C030" },
+  { name:"Dilip Mandal", zone:"Uzanbazar",       tasks:8,  paid:true,  onRoster:true,  tasksDone:5,  avatar:"DM", color:"#1DB95430" },
+  { name:"Meena Das",    zone:"Paltan Bazaar",   tasks:10, paid:true,  onRoster:true,  tasksDone:9,  avatar:"MD", color:"#F5A62330" },
+  { name:"Arun Saikia",  zone:"Bharalumukh",     tasks:7,  paid:false, onRoster:false, tasksDone:3,  avatar:"AS", color:"#E0525230" },
+];
+
+let bins = JSON.parse(JSON.stringify(INITIAL_BINS));
+let overflowAvoided = 0;
+let timeTick = 0;
+let currentFilter = 'all';
+let currentTab = 'dashboard';
+let auditLog = [
+  { time:"09:14", icon:"🤖", text:"<strong>AI Model</strong> predicted B-07 overflow at 11:36 AM (conf: 94%)" },
+  { time:"09:14", icon:"🤖", text:"<strong>AI Model</strong> predicted B-14 overflow at 11:49 AM (conf: 89%)" },
+  { time:"09:08", icon:"📡", text:"<strong>Sensor sync</strong> completed for all 15 bins — CPCB baseline applied" },
+  { time:"09:00", icon:"🟢", text:"<strong>RouteRight</strong> session started — Prophet v2.1 active" },
+];
+
+// ─── UTILITIES ─────────────────────────────────────────────────────
+function fillColor(p) {
+  if (p >= 90) return 'var(--red)';
+  if (p >= 75) return 'var(--amber)';
+  if (p >= 60) return 'var(--teal)';
+  return 'var(--green)';
+}
+function etaStr(m) {
+  if (m <= 0) return '⚠ OVERFLOW';
+  if (m < 60) return m + ' min';
+  return Math.floor(m/60) + 'h ' + (m%60) + 'm';
+}
+function statusClass(s) {
+  return {critical:'crit', alert:'alrt', watch:'watch', ok:'ok'}[s] || 'ok';
+}
+function pillClass(s) {
+  return {critical:'pill-crit', alert:'pill-alrt', watch:'pill-watch', ok:'pill-ok'}[s] || 'pill-ok';
+}
+function nowStr() {
+  return new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+}
+function addLog(icon, text) {
+  auditLog.unshift({ time: nowStr(), icon, text });
+  if (auditLog.length > 50) auditLog.pop();
+}
+
+// ─── CLOCK ─────────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', second:'2-digit'}) +
+    ' IST · Guwahati Pilot';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── GLOBAL STATS ──────────────────────────────────────────────────
+function globalStats() {
+  const crit = bins.filter(b => b.status === 'critical').length;
+  const alrt = bins.filter(b => b.status === 'alert').length;
+  const wtch = bins.filter(b => b.status === 'watch').length;
+  const ok   = bins.filter(b => b.status === 'ok').length;
+  const disp = bins.filter(b => b.dispatched).length;
+  const divRate = Math.min(89, 62 + overflowAvoided * 5 + timeTick * 2);
+  return { crit, alrt, wtch, ok, disp, divRate };
+}
+
+// ─── RENDER TABS ───────────────────────────────────────────────────
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function filterBins(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function render() {
+  updateSidebar();
+  const ca = document.getElementById('contentArea');
+  if (currentTab === 'dashboard')    ca.innerHTML = renderDashboard();
+  if (currentTab === 'predictions')  ca.innerHTML = renderPredictions();
+  if (currentTab === 'workers')      ca.innerHTML = renderWorkers();
+  if (currentTab === 'esg')          ca.innerHTML = renderESG();
+  if (currentTab === 'log')          ca.innerHTML = renderLog();
+}
+
+function updateSidebar() {
+  const s = globalStats();
+  document.getElementById('sbAllCount').textContent = bins.length;
+  document.getElementById('sbCritCount').textContent = s.crit;
+  document.getElementById('sbAlrtCount').textContent = s.alrt;
+  document.getElementById('sbWatchCount').textContent = s.wtch;
+  document.getElementById('sbOkCount').textContent = s.ok;
+  const cb = document.getElementById('critBadge');
+  if (s.crit > 0 && bins.some(b => b.status === 'critical' && !b.dispatched)) {
+    cb.style.display = 'block';
+    cb.textContent = `⚠ ${s.crit} CRITICAL`;
+  } else {
+    cb.style.display = 'none';
+  }
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────
+function renderDashboard() {
+  const s = globalStats();
+  const filtered = currentFilter === 'all' ? bins : bins.filter(b => b.status === currentFilter);
+
+  const statsHtml = `
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-val red">${s.crit}</div>
+        <div class="stat-lbl">CRITICAL BINS</div>
+        <div class="stat-sub">${bins.filter(b=>b.status==='critical'&&b.dispatched).length} dispatched</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--green)">${s.divRate}%</div>
+        <div class="stat-lbl">DIVERSION RATE</div>
+        <div class="stat-sub">Target: ≥85%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--amber)">${s.disp + s.alrt}</div>
+        <div class="stat-lbl">WORKERS ALERTED</div>
+        <div class="stat-sub">${s.disp} dispatched</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--teal)">${overflowAvoided}</div>
+        <div class="stat-lbl">OVERFLOWS AVOIDED</div>
+        <div class="stat-sub">Today</div>
+      </div>
+      <div class="stat">
+        <div class="stat-val" style="color:var(--greenlt)">Cycle ${timeTick}</div>
+        <div class="stat-lbl">SIMULATION STEP</div>
+        <div class="stat-sub">+${timeTick*30} min elapsed</div>
+      </div>
+    </div>`;
+
+  const simHtml = `
+    <div class="simbar">
+      <span class="sim-label">SIMULATE</span>
+      <button class="sim-btn" onclick="tickTime()">⏩ Advance 30 min</button>
+      <button class="sim-btn" onclick="dispatchAll()">📡 Dispatch All Critical</button>
+      <button class="sim-btn" onclick="resetSim()">↺ Reset</button>
+      <span class="sim-status" id="simStatus"></span>
+      <span class="cycle-badge">Cycle ${timeTick} · +${timeTick*30} min</span>
+    </div>`;
+
+  const tblRows = filtered.map(b => {
+    const fc = fillColor(b.fill);
+    let actHtml;
+    if (b.status === 'critical' && !b.dispatched)
+      actHtml = `<button class="act-btn act-dispatch" onclick="event.stopPropagation();dispatch('${b.id}')">🚨 DISPATCH NOW</button>`;
+    else if (b.dispatched)
+      actHtml = `<span class="act-btn act-sent">✓ Dispatched</span>`;
+    else if (b.status === 'alert')
+      actHtml = `<span class="act-btn act-alerted">📲 Alert Sent</span>`;
+    else if (b.status === 'watch')
+      actHtml = `<span class="act-btn act-monitor">👁 Monitoring</span>`;
+    else
+      actHtml = `<span class="act-btn act-none">— None</span>`;
+
+    return `<div class="tbl-row ${statusClass(b.status)}" onclick="showDetail('${b.id}')">
+      <span class="cell" style="font-weight:700;color:${fc}">${b.id}</span>
+      <span class="cell-m">${b.lane}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="mini-bar"><div class="mini-fill" style="width:${b.fill}%;background:${fc}"></div></div>
+        <span class="cell" style="color:${fc};font-weight:600">${b.fill}%</span>
+      </div>
+      <span><span class="pill ${pillClass(b.status)}">${b.status.toUpperCase()}</span></span>
+      <span class="cell" style="color:${b.eta<=30?'var(--red)':b.eta<=90?'var(--amber)':'var(--muted)'}">${etaStr(b.eta)}</span>
+      <span class="cell" style="color:${b.conf>=85?'var(--green)':b.conf>=70?'var(--amber)':'var(--red)'}">${b.conf}%</span>
+      ${actHtml}
+    </div>`;
+  }).join('');
+
+  const gaugesHtml = filtered.slice(0,8).map(b => `
+    <div class="gauge-row">
+      <span class="gauge-name">${b.lane}</span>
+      <div class="gauge-track"><div class="gauge-fill" style="width:${b.fill}%;background:${fillColor(b.fill)}"></div></div>
+      <span class="gauge-pct" style="color:${fillColor(b.fill)}">${b.fill}%</span>
+    </div>`).join('');
+
+  const alertHtml = bins.filter(b => b.status==='critical'||b.status==='alert').map(b => {
+    const bc = b.status==='critical' ? 'var(--red)' : 'var(--amber)';
+    return `<div class="alert-card" style="background:${b.status==='critical'?'#E0525212':'#F5A62312'};border:1px solid ${bc}">
+      <div class="alert-dot" style="background:${bc}"></div>
+      <div style="flex:1">
+        <div class="alert-head" style="color:${bc}">${b.id} — ${b.lane}</div>
+        <div class="alert-sub">Fill: ${b.fill}% · ETA: ${etaStr(b.eta)} · Confidence: ${b.conf}% · Worker: ${b.worker}</div>
+        ${b.dispatched
+          ? `<div style="font-size:10px;color:var(--green);margin-top:3px">✓ ${b.worker} dispatched — relay in progress</div>`
+          : `<button class="alert-dispatch-btn" style="background:${bc};color:${b.status==='critical'?'white':'var(--bg)'}" onclick="dispatch('${b.id}')">Send Alert to ${b.worker==='–'?'Nearest Worker':b.worker}</button>`
+        }
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-msg">✓ No active alerts. All bins within safe levels.</div>';
+
+  return `
+    ${statsHtml}
+    ${simHtml}
+    <div class="sec-hd">LIVE BIN STATUS — AI PREDICTIONS ACTIVE (click row for details)</div>
+    <div class="tbl-wrap">
+      <div class="tbl-hd"><span>BIN ID</span><span>LANE</span><span>FILL %</span><span>STATUS</span><span>AI ETA</span><span>CONFIDENCE</span><span>ACTION</span></div>
+      <div>${tblRows}</div>
+    </div>
+    <div class="panel-row">
+      <div class="panel"><div class="panel-hd">FILL LEVEL OVERVIEW</div>${gaugesHtml}</div>
+      <div class="panel">
+        <div class="panel-hd">ACTIVE ALERTS</div>
+        ${alertHtml}
+      </div>
+    </div>`;
+}
+
+// ─── PREDICTIONS TAB ───────────────────────────────────────────────
+function renderPredictions() {
+  const sorted = [...bins].sort((a,b) => a.eta - b.eta);
+  const rows = sorted.map(b => {
+    const fc = fillColor(b.fill);
+    const fillRate = ((b.fill - 18) / Math.max(timeTick,1) || 4.5).toFixed(1);
+    return `<div class="tbl-row ${statusClass(b.status)}" onclick="showDetail('${b.id}')">
+      <span class="cell" style="color:${fc};font-weight:700">${b.id}</span>
+      <span class="cell-m">${b.lane}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="mini-bar"><div class="mini-fill" style="width:${b.fill}%;background:${fc}"></div></div>
+        <span class="cell" style="color:${fc}">${b.fill}%</span>
+      </div>
+      <span class="cell" style="color:${b.eta<=30?'var(--red)':b.eta<=90?'var(--amber)':'var(--muted)'}"><strong>${etaStr(b.eta)}</strong></span>
+      <span class="cell" style="color:${b.conf>=85?'var(--green)':b.conf>=70?'var(--amber)':'var(--red)'}">${b.conf}%</span>
+      <span class="cell-m">${fillRate}%/hr</span>
+      <span><span class="pill ${pillClass(b.status)}">${b.status.toUpperCase()}</span></span>
+    </div>`;
+  }).join('');
+
+  const mae = Math.max(12, 18 - timeTick * 1.5).toFixed(0);
+  return `
+    <div class="panel" style="margin-bottom:14px">
+      <div class="panel-hd">AI MODEL STATUS — PROPHET v2.1</div>
+      <div class="ai-box">
+        <div class="ai-label">🤖 ACTIVE MODEL · CPCB BASELINE + SENSOR LOGS · RETRAINED 3 DAYS AGO</div>
+        <div class="ai-text">Monitoring ${bins.length} bins across 5 zones. ${bins.filter(b=>b.status==='critical').length} bin(s) critical. Current Mean Absolute Error: <strong style="color:var(--green)">${mae} minutes</strong> (target: &lt;30 min). Model recalibrates every 30-min sensor cycle. Festival/market-day context flags active for Paltan Bazaar zone.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px">
+        ${[
+          {k:'Predictions generated',v:bins.length+' this cycle',c:'var(--cream)'},
+          {k:'Overflows prevented',v:overflowAvoided+' today',c:'var(--green)'},
+          {k:'Model MAE',v:mae+' min avg',c:'var(--green)'},
+          {k:'Dispatch accuracy',v:'91%',c:'var(--green)'},
+        ].map(r=>`<div style="background:var(--bgalt);border-radius:7px;padding:10px 12px">
+          <div style="font-size:18px;font-weight:800;color:${r.c}">${r.v}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">${r.k}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="sec-hd">ALL BIN PREDICTIONS — SORTED BY URGENCY</div>
+    <div class="tbl-wrap">
+      <div class="tbl-hd"><span>BIN ID</span><span>LANE</span><span>FILL %</span><span>OVERFLOW ETA</span><span>CONFIDENCE</span><span>FILL RATE</span><span>STATUS</span></div>
+      <div>${rows}</div>
+    </div>`;
+}
+
+// ─── WORKERS TAB ───────────────────────────────────────────────────
+function renderWorkers() {
+  const dispBins = bins.filter(b => b.dispatched);
+  const workerHtml = WORKERS.map(w => {
+    const assigned = bins.filter(b => b.dispatched && b.worker === w.name);
+    const statusPill = w.onRoster
+      ? `<span class="pill pill-ok">ON ROSTER</span>`
+      : `<span class="pill pill-crit">INFORMAL</span>`;
+    const payStr = w.paid ? `<span style="color:var(--green)">✓ Verified pay · ₹${(w.tasksDone * 120).toLocaleString()} earned</span>` : `<span style="color:var(--red)">✗ Not on payroll</span>`;
+    return `
+      <div class="worker-card">
+        <div class="worker-avatar" style="background:${w.color};color:var(--cream)">${w.avatar}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:2px">
+            <span class="worker-name">${w.name}</span>
+            ${statusPill}
+          </div>
+          <div class="worker-sub">${w.zone} · ${w.tasksDone}/${w.tasks} tasks completed this week</div>
+          <div class="worker-pay">${payStr}</div>
+        </div>
+        <div class="worker-status">
+          ${assigned.length > 0
+            ? assigned.map(b=>`<span class="pill pill-crit" style="display:block;margin-bottom:3px">→ ${b.id} dispatched</span>`).join('')
+            : `<span style="font-size:11px;color:var(--slate)">Standby</span>`
+          }
+        </div>
+      </div>`;
+  }).join('');
+
+  const rostered = WORKERS.filter(w => w.onRoster).length;
+  const totalEarned = WORKERS.filter(w=>w.paid).reduce((a,w)=>a+w.tasksDone*120,0);
+  return `
+    <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+      <div class="stat"><div class="stat-val green">${rostered}</div><div class="stat-lbl">ON FORMAL ROSTER</div></div>
+      <div class="stat"><div class="stat-val red">${WORKERS.length-rostered}</div><div class="stat-lbl">STILL INFORMAL</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--amber)">${dispBins.length}</div><div class="stat-lbl">DISPATCHED TODAY</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--greenlt)">₹${totalEarned.toLocaleString()}</div><div class="stat-lbl">TOTAL VERIFIED PAY</div></div>
+    </div>
+    <div class="sec-hd" style="margin-top:4px">RELAY WORKER ROSTER</div>
+    <div>${workerHtml}</div>
+    <div class="panel" style="margin-top:4px">
+      <div class="panel-hd">SOCIAL IMPACT NOTE</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">
+        Before RouteRight: all 6 workers operated informally with no task record, no verified pay, no complaint mechanism.<br>
+        After RouteRight: <strong style="color:var(--cream)">${rostered} workers on verified payroll</strong> — every pickup task logged with timestamp, bin ID, and payment confirmation via Twilio.
+        <strong style="color:var(--amber)"> 1 worker (Arun Saikia)</strong> still needs onboarding — flagged for NGO partner action this week.
+      </div>
+    </div>`;
+}
+
+// ─── ESG TAB ───────────────────────────────────────────────────────
+function renderESG() {
+  const s = globalStats();
+  const divRate = s.divRate;
+  const roster = Math.round((WORKERS.filter(w=>w.onRoster).length / WORKERS.length)*100);
+  const auditPct = Math.min(98, 60 + overflowAvoided*15 + timeTick*5);
+
+  return `
+    <div class="sec-hd">ESG IMPACT DASHBOARD — LIVE METRICS</div>
+    <div class="esg-grid">
+      <div class="esg-card" style="background:#1DB95415;border:1px solid #1DB95440">
+        <div class="esg-pillar" style="color:var(--green)">E — ENVIRONMENTAL</div>
+        <div class="esg-val" style="color:var(--green)">${divRate}%</div>
+        <div class="esg-lbl">Waste Diversion Rate</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${divRate}%;background:var(--green)"></div></div>
+        <div class="esg-target">Target: ≥85% · Baseline: 62%</div>
+      </div>
+      <div class="esg-card" style="background:#F5A62315;border:1px solid #F5A62340">
+        <div class="esg-pillar" style="color:var(--amber)">S — SOCIAL</div>
+        <div class="esg-val" style="color:var(--amber)">${roster}%</div>
+        <div class="esg-lbl">Workers on Verified Payroll</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${roster}%;background:var(--amber)"></div></div>
+        <div class="esg-target">Target: 100% · Current: ${WORKERS.filter(w=>w.onRoster).length}/${WORKERS.length}</div>
+      </div>
+      <div class="esg-card" style="background:#20C9C015;border:1px solid #20C9C040">
+        <div class="esg-pillar" style="color:var(--teal)">G — GOVERNANCE</div>
+        <div class="esg-val" style="color:var(--teal)">${auditPct}%</div>
+        <div class="esg-lbl">Dispatch Decisions Audit-Logged</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${auditPct}%;background:var(--teal)"></div></div>
+        <div class="esg-target">Target: ≥98% · Baseline: 0%</div>
+      </div>
+    </div>
+    <div class="panel-row">
+      <div class="panel">
+        <div class="panel-hd">OVERFLOW INCIDENTS — PILOT WEEK COMPARISON</div>
+        ${[
+          {week:'Week 1 (before)',val:7,max:7,color:'var(--red)'},
+          {week:'Week 2 (before)',val:6,max:7,color:'var(--red)'},
+          {week:'Week 3 (after)',val:Math.max(0,3-timeTick),max:7,color:'var(--amber)'},
+          {week:'Week 4 (after)',val:Math.max(0,overflowAvoided>0?0:2-timeTick),max:7,color:'var(--green)'},
+        ].map(r=>`
+          <div class="gauge-row">
+            <span class="gauge-name" style="font-size:11px;color:var(--muted)">${r.week}</span>
+            <div class="gauge-track"><div class="gauge-fill" style="width:${(r.val/r.max)*100}%;background:${r.color}"></div></div>
+            <span class="gauge-pct" style="color:${r.color}">${r.val}</span>
+          </div>`).join('')}
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Overflow incidents per week · 10-bin pilot cluster · Guwahati</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hd">ESG REPORTING TABLE</div>
+        ${[
+          {metric:'Waste Diversion Rate',pillar:'E',pc:divRate,current:`${divRate}%`,expected:'≥85%',pc_color:'var(--green)'},
+          {metric:'Overflow Incidents/Week',pillar:'E',pc:Math.round((1-Math.min(overflowAvoided,6)/6)*100),current:Math.max(0,6-overflowAvoided)+' incidents',expected:'< 1',pc_color:'var(--red)'},
+          {metric:'Workers on Payroll',pillar:'S',pc:roster,current:roster+'%',expected:'100%',pc_color:'var(--amber)'},
+          {metric:'Health Complaints Reduced',pillar:'S',pc:Math.min(55+timeTick*8,80),current:`${Math.min(55+timeTick*8,80)}% drop`,expected:'≥50%',pc_color:'var(--amber)'},
+          {metric:'Dispatch Auditability',pillar:'G',pc:auditPct,current:auditPct+'%',expected:'≥98%',pc_color:'var(--teal)'},
+        ].map(r=>`
+          <div class="pred-row">
+            <span class="pred-k" style="font-size:11px">${r.metric} <span class="pill ${r.pillar==='E'?'pill-ok':r.pillar==='S'?'pill-alrt':'pill-watch'}" style="font-size:8px">${r.pillar}</span></span>
+            <span class="pred-v" style="font-size:11px;color:${r.pc_color}">${r.current} → <strong>${r.expected}</strong></span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ─── AUDIT LOG TAB ─────────────────────────────────────────────────
+function renderLog() {
+  const rows = auditLog.map(e => `
+    <div class="log-entry">
+      <span class="log-time">${e.time}</span>
+      <span class="log-icon">${e.icon}</span>
+      <span class="log-text">${e.text}</span>
+    </div>`).join('');
+  return `
+    <div class="panel">
+      <div class="panel-hd" style="display:flex;justify-content:space-between">
+        <span>SYSTEM AUDIT LOG — ALL DISPATCH DECISIONS RECORDED</span>
+        <span style="color:var(--green);font-size:10px">${auditLog.length} entries</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Every dispatch action is timestamped and logged. This log is the governance backbone of RouteRight — decisions are auditable, not manual.</div>
+      ${rows}
+    </div>`;
+}
+
+// ─── MODAL ─────────────────────────────────────────────────────────
+function showDetail(id) {
+  const b = bins.find(x => x.id === id);
+  if (!b) return;
+  const fc = fillColor(b.fill);
+  document.getElementById('modalTitle').textContent = `${b.id} — ${b.lane}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:var(--bgalt);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="flex:1">
+          <div class="gauge-track" style="height:14px;border-radius:6px">
+            <div class="gauge-fill" style="width:${b.fill}%;background:${fc}"></div>
+          </div>
+        </div>
+        <span style="font-size:20px;font-weight:800;color:${fc}">${b.fill}%</span>
+      </div>
+      <span class="pill ${pillClass(b.status)}">${b.status.toUpperCase()}</span>
+    </div>
+    ${[
+      {k:'Zone', v:b.zone},
+      {k:'AI Overflow ETA', v:`<strong style="color:${b.eta<=30?'var(--red)':b.eta<=90?'var(--amber)':'var(--green)'}}">${etaStr(b.eta)}</strong>`},
+      {k:'Prediction Confidence', v:`<span style="color:${b.conf>=85?'var(--green)':'var(--amber)'}">${b.conf}%</span>`},
+      {k:'Assigned Relay Worker', v:b.worker},
+      {k:'Dispatch Status', v:b.dispatched?`<span class="tick">✓ Dispatched — ${b.worker} en route</span>`:`<span class="cross">✗ Pending dispatch</span>`},
+      {k:'Fill Rate (estimated)', v:`${((b.fill - 18) / Math.max(timeTick*0.5,1)).toFixed(1)}% / hour`},
+      {k:'Sensor type', v:'Ultrasonic (HC-SR04) via GSM'},
+      {k:'Last updated', v:nowStr()+' IST'},
+    ].map(r=>`<div class="pred-row"><span class="pred-k">${r.k}</span><span class="pred-v">${r.v}</span></div>`).join('')}
+    ${!b.dispatched && b.status==='critical' ? `<button onclick="dispatch('${b.id}');closeModal()" style="width:100%;margin-top:12px;padding:8px;background:var(--red);color:white;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🚨 DISPATCH NOW — ${b.worker}</button>` : ''}`;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+
+// ─── ACTIONS ───────────────────────────────────────────────────────
+function dispatch(id) {
+  const b = bins.find(x => x.id === id);
+  if (!b || b.dispatched) return;
+  b.dispatched = true;
+  overflowAvoided++;
+  addLog('📲', `<strong>${b.worker}</strong> dispatched to <strong>${b.id} (${b.lane})</strong> — overflow ETA was ${etaStr(b.eta)}, conf: ${b.conf}%`);
+  addLog('✅', `<strong>Overflow prevented</strong> at ${b.id} — dispatch logged, prediction verified`);
+  showToast(`✓ ${b.worker} alerted for ${b.id}`);
+  render();
+}
+
+function dispatchAll() {
+  let count = 0;
+  bins.filter(b => b.status === 'critical' && !b.dispatched).forEach(b => {
+    b.dispatched = true; count++; overflowAvoided++;
+    addLog('📡', `<strong>Bulk dispatch</strong> — ${b.worker} → ${b.id} (${b.lane})`);
+  });
+  if (count > 0) {
+    addLog('✅', `<strong>${count} relay worker(s)</strong> dispatched in bulk — ${count} overflow(s) prevented`);
+    showToast(`✓ ${count} worker(s) dispatched`);
+  } else {
+    showToast('All critical bins already dispatched');
+  }
+  render();
+}
+
+function tickTime() {
+  timeTick++;
+  bins.forEach(b => {
+    const rate = b.lane.includes('Market') || b.lane.includes('Bazaar') ? 7 : 4;
+    if (!b.dispatched) {
+      b.fill = Math.min(100, b.fill + Math.floor(Math.random() * rate) + 2);
+      b.eta = Math.max(0, b.eta - 30);
+    } else {
+      b.fill = Math.max(10, b.fill - 18);
+      b.eta = Math.min(540, b.eta + 120);
+      if (b.fill < 80) b.dispatched = false;
+    }
+    b.conf = Math.min(98, Math.max(65, b.conf + (Math.random() > 0.5 ? 1 : -1)));
+    if (b.fill >= 90) b.status = 'critical';
+    else if (b.fill >= 75) b.status = 'alert';
+    else if (b.fill >= 60) b.status = 'watch';
+    else b.status = 'ok';
+  });
+  addLog('⏩', `<strong>Time advanced +30 min</strong> (Cycle ${timeTick}) — AI recalculated all ${bins.length} predictions`);
+  showToast(`+30 min — Cycle ${timeTick}`);
+  render();
+}
+
+function resetSim() {
+  bins = JSON.parse(JSON.stringify(INITIAL_BINS));
+  overflowAvoided = 0; timeTick = 0; currentFilter = 'all';
+  auditLog = [{ time: nowStr(), icon:'↺', text:'<strong>Simulation reset</strong> — all bins restored to baseline state' }];
+  showToast('Simulation reset');
+  render();
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:var(--bgalt);border:1px solid var(--green);color:var(--green);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;z-index:999;transition:opacity 0.3s;box-shadow:0 4px 12px #00000044';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
